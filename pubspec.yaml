@@ -38,6 +38,8 @@ dependencies:
   flutter_gemini: ^2.0.4
   image_picker: ^1.1.2
   dash_chat_2: ^0.0.21
+  image_cropper:
+  get: ^4.6.6
 
 dev_dependencies:
   flutter_test:

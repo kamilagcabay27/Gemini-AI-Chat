@@ -4,6 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
+import 'package:gemini_ai_app/components/cropped_image.dart';
+import 'package:get/get.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 class HomePage extends StatefulWidget {
@@ -16,6 +19,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final Gemini gemini = Gemini.instance;
   List<ChatMessage> messages = [];
+  XFile? image;
+  bool changeTheme = false;
 
   ChatUser currentUser = ChatUser(id: "0", firstName: "User");
   ChatUser geminiAI = ChatUser(
@@ -32,7 +37,7 @@ class _HomePageState extends State<HomePage> {
       ChatMessage chatMessage = ChatMessage(
         user: currentUser,
         createdAt: DateTime.now(),
-        text: "Bu resmi açıklarmısın ?",
+        text: "Bu resmi açıklar mısın?",
         medias: [
           ChatMedia(
             url: file.path,
@@ -45,6 +50,60 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void selectCropImage(bool pickImageFromGallery) async {
+    final picker = ImagePicker();
+
+    if (pickImageFromGallery == true) {
+      image = await picker.pickImage(source: ImageSource.gallery);
+    } else {
+      image = await picker.pickImage(source: ImageSource.camera);
+    }
+
+    if (image != null) {
+      final croppedImage = await cropImages(image!);
+
+      if (croppedImage != null) {
+        ChatMessage chatMessage = ChatMessage(
+          user: currentUser,
+          createdAt: DateTime.now(),
+          text: "Bu resmi açıklar mısın?",
+          medias: [
+            ChatMedia(
+              url: croppedImage.path,
+              fileName: "",
+              type: MediaType.image,
+            ),
+          ],
+        );
+        _sendMessage(chatMessage);
+      }
+    }
+  }
+
+  Future<CroppedFile?> cropImages(XFile image) async {
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarColor: Colors.deepOrange,
+          toolbarTitle: 'Edit Image',
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: false,
+          aspectRatioPresets: [
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.square,
+            CropAspectRatioPreset.ratio4x3,
+            CropAspectRatioPreset.ratio16x9,
+            CropAspectRatioPreset.ratio7x5,
+          ],
+        ),
+      ],
+    );
+
+    return croppedFile;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,6 +112,17 @@ class _HomePageState extends State<HomePage> {
         title: const Text(
           "Gemini Chat",
         ),
+        leading: IconButton(
+          icon: Icon(Get.isDarkMode ? Icons.dark_mode : Icons.light_mode),
+          onPressed: () {
+            if (Get.isDarkMode) {
+              setState(() {});
+              Get.changeTheme(ThemeData.light());
+            } else {
+              Get.changeTheme(ThemeData.dark());
+            }
+          },
+        ),
       ),
       body: _buildUI(),
     );
@@ -60,15 +130,25 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildUI() {
     return DashChat(
-        inputOptions: InputOptions(trailing: [
-          IconButton(
-            onPressed: selectImage,
-            icon: const Icon(Icons.image),
+      inputOptions: InputOptions(trailing: [
+        IconButton(
+          onPressed: selectImage,
+          icon: const Icon(Icons.image),
+        ),
+        IconButton(
+          onPressed: () {
+            selectCropImage(false);
+          },
+          icon: const Icon(
+            Icons.camera,
+            color: Colors.blue,
           ),
-        ]),
-        currentUser: currentUser,
-        onSend: _sendMessage,
-        messages: messages ?? []);
+        ),
+      ]),
+      currentUser: currentUser,
+      onSend: _sendMessage,
+      messages: messages ?? [],
+    );
   }
 
   void _sendMessage(ChatMessage chatMessage) {
